@@ -1482,6 +1482,7 @@ pub struct SpreadResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct TickSizeResponse {
+    #[serde(deserialize_with = "crate::decode::deserializers::decimal_from_any")]
     pub minimum_tick_size: Decimal,
 }
 

@@ -824,20 +824,10 @@ impl ClobClient {
         token_id: &str,
         tick_size: Option<Decimal>,
     ) -> Result<Decimal> {
-        let min_tick_size = self.get_tick_size(token_id).await?;
-
         match tick_size {
-            None => Ok(min_tick_size),
-            Some(t) => {
-                if t < min_tick_size {
-                    Err(PolyfillError::validation(format!(
-                        "Tick size {} is smaller than min_tick_size {} for token_id: {}",
-                        t, min_tick_size, token_id
-                    )))
-                } else {
-                    Ok(t)
-                }
-            },
+            // Caller already knows the tick size — trust it, skip the API call.
+            Some(t) => Ok(t),
+            None => self.get_tick_size(token_id).await,
         }
     }
 
@@ -1818,10 +1808,18 @@ impl ClobClient {
             .await
             .map_err(|e| PolyfillError::network(format!("Request failed: {}", e), e))?;
 
-        response
-            .json::<Value>()
+        // The API may return an empty body or non-JSON on success.
+        // Try to parse as JSON, fall back to wrapping the raw text.
+        let text = response
+            .text()
             .await
-            .map_err(|e| PolyfillError::parse(format!("Failed to parse response: {}", e), None))
+            .map_err(|e| PolyfillError::parse(format!("Failed to read response: {}", e), None))?;
+
+        if text.is_empty() {
+            Ok(Value::Null)
+        } else {
+            Ok(serde_json::from_str(&text).unwrap_or_else(|_| Value::String(text)))
+        }
     }
 
     /// Check if an order is scoring

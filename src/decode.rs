@@ -186,6 +186,24 @@ pub mod deserializers {
             serde::de::Error::custom("Expected decimal as string/number, got null/empty string")
         })
     }
+
+    /// Deserialize a Decimal from any JSON type (string, number, or float).
+    /// Works around the `serde-str` feature which makes `Decimal::deserialize` reject floats.
+    pub fn decimal_from_any<'de, D>(deserializer: D) -> std::result::Result<Decimal, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = serde_json::Value::deserialize(deserializer)?;
+        match value {
+            serde_json::Value::String(s) => {
+                Decimal::from_str(s.trim()).map_err(serde::de::Error::custom)
+            }
+            serde_json::Value::Number(n) => {
+                Decimal::from_str(&n.to_string()).map_err(serde::de::Error::custom)
+            }
+            _ => Err(serde::de::Error::custom("Expected string or number for Decimal")),
+        }
+    }
 }
 
 /// Raw API response types for efficient parsing
