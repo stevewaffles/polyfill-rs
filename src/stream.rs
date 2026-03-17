@@ -166,6 +166,21 @@ impl WebSocketStream {
         Ok(())
     }
 
+    /// Send a raw text string over the WebSocket (e.g. "PING" keepalive).
+    pub async fn send_text(&mut self, text: &str) -> Result<()> {
+        if let Some(connection) = &mut self.connection {
+            let ws_message = tokio_tungstenite::tungstenite::Message::Text(text.to_string());
+            connection.send(ws_message).await.map_err(|e| {
+                PolyfillError::stream(
+                    format!("Failed to send text: {}", e),
+                    crate::errors::StreamErrorKind::MessageCorrupted,
+                )
+            })?;
+            self.stats.messages_sent += 1;
+        }
+        Ok(())
+    }
+
     /// Subscribe to market data using official Polymarket WebSocket API
     pub async fn subscribe_async(&mut self, subscription: WssSubscription) -> Result<()> {
         // Ensure connection
