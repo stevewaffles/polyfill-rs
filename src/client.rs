@@ -975,6 +975,37 @@ impl ClobClient {
         )
     }
 
+    /// Create a market order with a caller-supplied worst price (no book fetch).
+    pub fn create_market_order_with_price(
+        &self,
+        order_args: &crate::types::MarketOrderArgs,
+        price: Decimal,
+        extras: Option<crate::types::ExtraOrderArgs>,
+        options: Option<&OrderOptions>,
+    ) -> Result<SignedOrderRequest> {
+        let order_builder = self
+            .order_builder
+            .as_ref()
+            .ok_or_else(|| PolyfillError::auth("Order builder not initialized"))?;
+
+        let create_order_options = match options {
+            Some(opts) => opts.clone(),
+            None => return Err(PolyfillError::validation(
+                "OrderOptions required for create_market_order_with_price",
+            )),
+        };
+
+        let extras = extras.unwrap_or_default();
+
+        order_builder.create_market_order(
+            self.chain_id,
+            order_args,
+            price,
+            &extras,
+            &create_order_options,
+        )
+    }
+
     /// Post an order to the exchange
     pub async fn post_order(
         &self,
